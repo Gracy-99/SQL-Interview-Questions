@@ -1,0 +1,414 @@
+# SQL JOINs – Continued
+
+## 4. LEFT JOIN – ON vs WHERE
+
+One important difference in `LEFT JOIN` is whether a condition is placed in the `ON` clause or the `WHERE` clause.
+
+### Condition in ON
+
+```sql
+SELECT 
+    D.DepartmentName,
+    E.EmployeeName
+FROM Departments D
+LEFT JOIN Employees E
+    ON D.DepartmentID = E.DepartmentID
+    AND D.DepartmentName = 'IT';
+```
+
+### Result
+
+| DepartmentName | EmployeeName |
+| -------------- | ------------ |
+| HR             | NULL         |
+| IT             | Priya        |
+| IT             | David        |
+| Finance        | NULL         |
+| Sales          | NULL         |
+
+### Why?
+
+`Departments` is the LEFT table, so all departments are retained.
+
+The condition:
+
+```sql
+AND D.DepartmentName = 'IT'
+```
+
+is part of the JOIN condition. It controls which employee records can match, but it does not remove the departments from the result.
+
+---
+
+### Condition in WHERE
+
+```sql
+SELECT 
+    D.DepartmentName,
+    E.EmployeeName
+FROM Departments D
+LEFT JOIN Employees E
+    ON D.DepartmentID = E.DepartmentID
+WHERE D.DepartmentName = 'IT';
+```
+
+### Result
+
+| DepartmentName | EmployeeName |
+| -------------- | ------------ |
+| IT             | Priya        |
+| IT             | David        |
+
+Here, `WHERE` filters the final result, so only the IT department remains.
+
+### Key Difference
+
+```text
+ON    → Controls which records match during the JOIN
+
+WHERE → Filters the final result
+```
+
+---
+
+## 5. Find Departments with No Employees
+
+### Requirement
+
+Find departments that do not have any employees.
+
+```sql
+SELECT 
+    D.DepartmentID,
+    D.DepartmentName
+FROM Departments D
+LEFT JOIN Employees E
+    ON D.DepartmentID = E.DepartmentID
+WHERE E.EmployeeID IS NULL;
+```
+
+### Result
+
+| DepartmentID | DepartmentName |
+| ------------ | -------------- |
+| 3            | Finance        |
+| 4            | Sales          |
+
+### Important Pattern
+
+```sql
+LEFT JOIN
++
+WHERE RightTable.Key IS NULL
+```
+
+This is commonly used to find records in the LEFT table that have **no matching record** in the RIGHT table.
+
+---
+
+## 6. Find Employees Without a Valid Department
+
+### Requirement
+
+Find employees whose department does not exist in the Departments table.
+
+```sql
+SELECT 
+    E.EmployeeID,
+    E.EmployeeName
+FROM Employees E
+LEFT JOIN Departments D
+    ON E.DepartmentID = D.DepartmentID
+WHERE D.DepartmentID IS NULL;
+```
+
+### Result
+
+| EmployeeID | EmployeeName |
+| ---------- | ------------ |
+| 104        | Sarah        |
+
+Sarah has `DepartmentID = 5`, but there is no DepartmentID `5` in the Departments table.
+
+### Important Point
+
+The LEFT table depends on what we want to find.
+
+```text
+Departments → Employees
+Find departments without employees
+
+Employees → Departments
+Find employees without a valid department
+```
+
+---
+
+# 7. RIGHT JOIN
+
+`RIGHT JOIN` returns:
+
+* All rows from the RIGHT table
+* Matching rows from the LEFT table
+* `NULL` when there is no match
+
+```sql
+SELECT 
+    D.DepartmentName,
+    E.EmployeeName
+FROM Employees E
+RIGHT JOIN Departments D
+    ON E.DepartmentID = D.DepartmentID;
+```
+
+Here:
+
+```text
+Employees   → LEFT table
+Departments → RIGHT table
+```
+
+Therefore, all departments are included.
+
+### Result
+
+| DepartmentName | EmployeeName |
+| -------------- | ------------ |
+| HR             | John         |
+| IT             | Priya        |
+| IT             | David        |
+| Finance        | NULL         |
+| Sales          | NULL         |
+
+### RIGHT JOIN can be written as LEFT JOIN
+
+The same result can be achieved by switching the table order:
+
+```sql
+SELECT 
+    D.DepartmentName,
+    E.EmployeeName
+FROM Departments D
+LEFT JOIN Employees E
+    ON D.DepartmentID = E.DepartmentID;
+```
+
+### Remember
+
+```text
+RIGHT JOIN
+→ All rows from the RIGHT table
+→ Matching rows from the LEFT table
+```
+
+---
+
+# 8. FULL OUTER JOIN
+
+`FULL OUTER JOIN` returns **all rows from both tables**.
+
+It includes:
+
+* Matching records
+* Unmatched records from the LEFT table
+* Unmatched records from the RIGHT table
+
+```sql
+SELECT 
+    D.DepartmentID,
+    D.DepartmentName,
+    E.EmployeeID,
+    E.EmployeeName
+FROM Departments D
+FULL OUTER JOIN Employees E
+    ON D.DepartmentID = E.DepartmentID;
+```
+
+### Result
+
+| DepartmentID | DepartmentName | EmployeeID | EmployeeName |
+| ------------ | -------------- | ---------- | ------------ |
+| 1            | HR             | 101        | John         |
+| 2            | IT             | 102        | Priya        |
+| 2            | IT             | 103        | David        |
+| 3            | Finance        | NULL       | NULL         |
+| 4            | Sales          | NULL       | NULL         |
+| NULL         | NULL           | 104        | Sarah        |
+
+Sarah appears because `FULL OUTER JOIN` keeps unmatched records from both tables.
+
+### Remember
+
+```text
+FULL OUTER JOIN
+→ Everything from BOTH tables
+```
+
+---
+
+# 9. Identify Matched and Unmatched Records
+
+### Requirement
+
+Show every employee and every department and identify whether they have a match.
+
+```sql
+SELECT 
+    E.EmployeeID,
+    E.EmployeeName,
+    D.DepartmentID,
+    D.DepartmentName,
+    CASE
+        WHEN E.EmployeeID IS NULL 
+            THEN 'Department has no employee'
+        WHEN D.DepartmentID IS NULL 
+            THEN 'Employee has no department'
+        ELSE 'Matched'
+    END AS MatchStatus
+FROM Employees E
+FULL OUTER JOIN Departments D
+    ON E.DepartmentID = D.DepartmentID;
+```
+
+### Example Result
+
+| EmployeeID | EmployeeName | DepartmentID | DepartmentName | MatchStatus                |
+| ---------- | ------------ | ------------ | -------------- | -------------------------- |
+| 101        | John         | 1            | HR             | Matched                    |
+| 102        | Priya        | 2            | IT             | Matched                    |
+| 103        | David        | 2            | IT             | Matched                    |
+| NULL       | NULL         | 3            | Finance        | Department has no employee |
+| NULL       | NULL         | 4            | Sales          | Department has no employee |
+| 104        | Sarah        | NULL         | NULL           | Employee has no department |
+
+### Why use CASE?
+
+We want to **keep all records** and label their status instead of filtering them out.
+
+---
+
+# Mistakes / Learning Points
+
+## Mistake 1 – Understanding ON vs WHERE
+
+Initially, I thought:
+
+```sql
+AND D.DepartmentName = 'IT'
+```
+
+would return only IT employees.
+
+But because the condition was inside `ON`, all departments were still retained by the `LEFT JOIN`.
+
+### Correct understanding
+
+```text
+Condition in ON
+→ affects matching
+
+Condition in WHERE
+→ filters the final result
+```
+
+---
+
+## Mistake 2 – FULL OUTER JOIN with WHERE
+
+I initially wrote:
+
+```sql
+SELECT E.*, D.*
+FROM Employees E
+FULL OUTER JOIN Departments D
+    ON E.DepartmentID = D.DepartmentID
+WHERE E.EmployeeName IS NULL
+  AND D.DepartmentID IS NULL;
+```
+
+This was incorrect for the requirement because the `WHERE` condition filters the FULL OUTER JOIN result.
+
+The requirement was to show **all records and identify whether they matched**.
+
+The better approach is:
+
+```sql
+CASE
+    WHEN E.EmployeeID IS NULL THEN 'Department has no employee'
+    WHEN D.DepartmentID IS NULL THEN 'Employee has no department'
+    ELSE 'Matched'
+END
+```
+
+### Lesson
+
+Before using `WHERE ... IS NULL`, ask:
+
+> Do I want ONLY unmatched records, or do I want ALL records with their match status?
+
+---
+
+# JOIN Cheat Sheet
+
+| JOIN            | What it returns              |
+| --------------- | ---------------------------- |
+| INNER JOIN      | Matching records only        |
+| LEFT JOIN       | All LEFT + matching RIGHT    |
+| RIGHT JOIN      | All RIGHT + matching LEFT    |
+| FULL OUTER JOIN | All records from BOTH tables |
+
+### Easy way to remember
+
+```text
+INNER → Matching only
+
+LEFT → Everything from LEFT
+
+RIGHT → Everything from RIGHT
+
+FULL → Everything from BOTH
+```
+
+---
+
+# Interview Points
+
+### What is a LEFT JOIN?
+
+A `LEFT JOIN` returns all records from the left table and matching records from the right table. If there is no match, `NULL` is returned for the right-table columns.
+
+### How do you find records with no match?
+
+Use:
+
+```sql
+LEFT JOIN
+```
+
+with:
+
+```sql
+WHERE RightTable.Key IS NULL
+```
+
+### Difference between ON and WHERE?
+
+`ON` controls how records are matched during the JOIN, while `WHERE` filters the final result.
+
+### What is FULL OUTER JOIN?
+
+It returns all records from both tables. Matching records are combined, while unmatched records contain `NULL` values for the other table.
+
+---
+
+# Key Takeaway
+
+When writing a JOIN, ask:
+
+1. Which records do I need to keep?
+2. Which table should be on the LEFT?
+3. Do I need matching records only?
+4. Do I need unmatched records?
+5. Should my condition go in `ON` or `WHERE`?
+
+Understanding these questions is more important than simply memorizing JOIN syntax.
